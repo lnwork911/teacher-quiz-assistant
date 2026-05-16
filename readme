@@ -1,0 +1,12 @@
+/netlify/functions/
+  generate.js
+  submitQuiz.js
+  getDashboardData.js
+  initUser.js
+
+/index.html
+/quiz.html
+/dashboard.html
+
+/package.json
+/netlify.toml
