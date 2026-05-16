@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Take Quiz — Quiz App</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; padding: 2rem; }
+    .container { max-width: 700px; margin: 0 auto; }
+    h1 { font-size: 2rem; margin-bottom: 1.5rem; color: #818cf8; }
+    .question-card { background: #1e293b; border-radius: 0.75rem; padding: 1.5rem; margin-bottom: 1.5rem; }
+    .question-card h2 { font-size: 1.1rem; margin-bottom: 1rem; }
+    .question-card .q-num { color: #6366f1; font-size: 0.85rem; margin-bottom: 0.25rem; }
+    .options { display: flex; flex-direction: column; gap: 0.5rem; }
+    .option { padding: 0.75rem 1rem; border-radius: 0.5rem; border: 1px solid #334155; cursor: pointer; transition: background 0.15s; }
+    .option:hover { background: #334155; }
+    .option.selected { background: #6366f1; border-color: #6366f1; color: #fff; }
+    .option.correct { background: #22c55e; border-color: #22c55e; color: #fff; }
+    .option.wrong { background: #ef4444; border-color: #ef4444; color: #fff; }
+    button.submit { display: block; width: 100%; padding: 1rem; border: none; border-radius: 0.5rem; background: #6366f1; color: #fff; font-size: 1.1rem; font-weight: 600; cursor: pointer; margin-top: 1rem; }
+    button.submit:hover { background: #4f46e5; }
+    button.submit:disabled { background: #334155; cursor: not-allowed; }
+    #result { margin-top: 2rem; padding: 1.5rem; border-radius: 0.75rem; background: #1e293b; display: none; text-align: center; }
+    #result h2 { font-size: 1.5rem; margin-bottom: 0.5rem; }
+    #result .score { font-size: 3rem; font-weight: 700; }
+    #result .score.high { color: #22c55e; }
+    #result .score.mid { color: #eab308; }
+    #result .score.low { color: #ef4444; }
+    a.back { display: inline-block; margin-top: 1rem; color: #818cf8; text-decoration: none; }
+    #loading { text-align: center; color: #94a3b8; padding: 4rem 0; font-size: 1.2rem; }
+    nav { margin-bottom: 1.5rem; }
+    nav a { color: #818cf8; text-decoration: none; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <nav><a href="/">← Home</a></nav>
+    <h1>Quiz Time</h1>
+    <div id="loading">Loading questions…</div>
+    <div id="quiz" style="display:none"></div>
+    <button id="submitBtn" class="submit" style="display:none" onclick="submitQuiz()">Submit Answers</button>
+    <div id="result"></div>
+  </div>
+  <script>
+    let questions = [];
+    let quizId = "";
+    let answers = {};
+
+    async function loadQuiz() {
+      try {
+        const res = await fetch("/.netlify/functions/generate?count=5");
+        const data = await res.json();
+        quizId = data.quizId;
+        questions = data.questions;
+        renderQuiz();
+      } catch (err) {
+        document.getElementById("loading").textContent = "Failed to load quiz: " + err.message;
+      }
+    }
+
+    function renderQuiz() {
+      document.getElementById("loading").style.display = "none";
+      const quizEl = document.getElementById("quiz");
+      quizEl.style.display = "block";
+      document.getElementById("submitBtn").style.display = "block";
+
+      quizEl.innerHTML = questions.map((q, qi) => `
+        <div class="question-card">
+          <div class="q-num">Question ${qi + 1} of ${questions.length}</div>
+          <h2>${q.question}</h2>
+          <div class="options">
+            ${q.options.map((opt, oi) => `
+              <div class="option" data-q="${qi}" data-o="${oi}" onclick="selectOption(${qi}, ${oi})">${opt}</div>
+            `).join("")}
+          </div>
+        </div>
+      `).join("");
+    }
+
+    function selectOption(qi, oi) {
+      answers[qi] = oi;
+      document.querySelectorAll(`.option[data-q="${qi}"]`).forEach(el => el.classList.remove("selected"));
+      document.querySelector(`.option[data-q="${qi}"][data-o="${oi}"]`).classList.add("selected");
+    }
+
+    async function submitQuiz() {
+      const answerArray = questions.map((_, i) => answers[i] ?? -1);
+      try {
+        const res = await fetch("/.netlify/functions/submitQuiz", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ quizId, answers: answerArray, questions }),
+        });
+        const data = await res.json();
+        showResult(data);
+      } catch (err) {
+        alert("Submission failed: " + err.message);
+      }
+    }
+
+    function showResult(data) {
+      document.getElementById("submitBtn").style.display = "none";
+      const resultEl = document.getElementById("result");
+      resultEl.style.display = "block";
+      const cls = data.score >= 80 ? "high" : data.score >= 50 ? "mid" : "low";
+      resultEl.innerHTML = `
+        <h2>Results</h2>
+        <div class="score ${cls}">${data.score}%</div>
+        <p>${data.correctCount} of ${data.totalQuestions} correct</p>
+        <a class="back" href="/quiz.html">Try Again</a> · <a class="back" href="/dashboard.html">Dashboard</a> · <a class="back" href="/">Home</a>
+      `;
+
+      data.results.forEach((r, i) => {
+        const opts = document.querySelectorAll(`.option[data-q="${i}"]`);
+        opts.forEach(el => {
+          el.style.pointerEvents = "none";
+          const oi = parseInt(el.dataset.o);
+          if (oi === r.correct) el.classList.add("correct");
+          if (oi === r.selected && !r.isCorrect) el.classList.add("wrong");
+        });
+      });
+    }
+
+    loadQuiz();
+  </script>
+</body>
+</html>

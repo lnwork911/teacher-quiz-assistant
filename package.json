@@ -1,0 +1,19 @@
+{
+  "name": "quiz-app",
+  "version": "1.0.0",
+  "description": "A serverless quiz application built with Netlify Functions",
+  "scripts": {
+    "dev": "netlify dev",
+    "lint": "eslint netlify/functions/*.js",
+    "test": "jest --verbose",
+    "build": "echo 'Static site — no build step required'"
+  },
+  "dependencies": {
+    "@netlify/functions": "^2.8.0"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.0",
+    "jest": "^29.7.0",
+    "netlify-cli": "^17.37.0"
+  }
+}

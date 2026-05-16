@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — Quiz App</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; padding: 2rem; }
+    .container { max-width: 700px; margin: 0 auto; }
+    h1 { font-size: 2rem; margin-bottom: 1.5rem; color: #818cf8; }
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+    .stat-card { background: #1e293b; border-radius: 0.75rem; padding: 1.5rem; text-align: center; }
+    .stat-card .value { font-size: 2.5rem; font-weight: 700; color: #818cf8; }
+    .stat-card .label { font-size: 0.85rem; color: #94a3b8; margin-top: 0.25rem; }
+    .section { background: #1e293b; border-radius: 0.75rem; padding: 1.5rem; margin-bottom: 1.5rem; }
+    .section h2 { font-size: 1.2rem; margin-bottom: 1rem; }
+    .bar-chart { display: flex; flex-direction: column; gap: 0.75rem; }
+    .bar-row { display: flex; align-items: center; gap: 1rem; }
+    .bar-row .bar-label { width: 120px; font-size: 0.9rem; color: #94a3b8; }
+    .bar-row .bar { flex: 1; height: 24px; background: #334155; border-radius: 4px; overflow: hidden; }
+    .bar-row .bar-fill { height: 100%; background: linear-gradient(90deg, #6366f1, #818cf8); border-radius: 4px; transition: width 0.6s ease; }
+    .bar-row .bar-value { width: 40px; text-align: right; font-weight: 600; }
+    .scores { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .score-badge { padding: 0.4rem 0.8rem; border-radius: 0.5rem; font-weight: 600; font-size: 0.9rem; }
+    .score-badge.high { background: #166534; color: #4ade80; }
+    .score-badge.mid { background: #854d0e; color: #fbbf24; }
+    .score-badge.low { background: #991b1b; color: #fca5a5; }
+    nav { margin-bottom: 1.5rem; }
+    nav a { color: #818cf8; text-decoration: none; font-size: 0.9rem; }
+    #loading { text-align: center; color: #94a3b8; padding: 4rem 0; font-size: 1.2rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <nav><a href="/">← Home</a></nav>
+    <h1>Dashboard</h1>
+    <div id="loading">Loading dashboard data…</div>
+    <div id="dashboard" style="display:none"></div>
+  </div>
+  <script>
+    async function loadDashboard() {
+      try {
+        const res = await fetch("/.netlify/functions/getDashboardData");
+        const data = await res.json();
+        render(data);
+      } catch (err) {
+        document.getElementById("loading").textContent = "Failed to load: " + err.message;
+      }
+    }
+
+    function render(data) {
+      document.getElementById("loading").style.display = "none";
+      const el = document.getElementById("dashboard");
+      el.style.display = "block";
+
+      el.innerHTML = `
+        <div class="stats">
+          <div class="stat-card"><div class="value">${data.totalQuizzesTaken}</div><div class="label">Quizzes Taken</div></div>
+          <div class="stat-card"><div class="value">${data.averageScore}%</div><div class="label">Average Score</div></div>
+        </div>
+        <div class="section">
+          <h2>Recent Scores</h2>
+          <div class="scores">
+            ${data.recentScores.map(s => {
+              const cls = s >= 80 ? "high" : s >= 50 ? "mid" : "low";
+              return `<span class="score-badge ${cls}">${s}%</span>`;
+            }).join("")}
+          </div>
+        </div>
+        <div class="section">
+          <h2>Top Categories</h2>
+          <div class="bar-chart">
+            ${data.topCategories.map(c => `
+              <div class="bar-row">
+                <span class="bar-label">${c.name}</span>
+                <div class="bar"><div class="bar-fill" style="width:${c.score}%"></div></div>
+                <span class="bar-value">${c.score}%</span>
+              </div>
+            `).join("")}
+          </div>
+        </div>
+        <p style="text-align:center;margin-top:1.5rem"><a href="/quiz.html" style="color:#818cf8">Take another quiz →</a></p>
+      `;
+    }
+
+    loadDashboard();
+  </script>
+</body>
+</html>
